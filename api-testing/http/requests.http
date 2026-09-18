@@ -1,0 +1,92 @@
+### PRD & Screenshot Test Case Generator — REST Client requests
+### Open this file in VS Code with the "REST Client" extension (humao.rest-client),
+### then click "Send Request" above any line starting with ###.
+### Companion to ../README.md — same 10 exercises as the Postman collection and the
+### curl cheatsheet, as plain, version-controlled text instead of an app you open.
+
+@baseUrl = http://localhost:8080
+
+### Exercise 0: health check — static UI loads
+GET {{baseUrl}}/
+
+### Exercise 7: list history (run this before "get history item" below,
+### then copy an id from the response into the request underneath it)
+GET {{baseUrl}}/api/history
+
+### Exercise 8: get one history item by id — replace 37 with a real id from above
+GET {{baseUrl}}/api/history/37
+
+### Exercise 9: get a history item that doesn't exist (expect 404)
+GET {{baseUrl}}/api/history/999999999
+
+### Exercise 2: analyze PRD with no body/Content-Type at all.
+### Expect 415, not 400 — consumes="multipart/form-data" rejects a non-multipart
+### request before the controller method ever runs. (A real discrepancy with
+### ApiSmokeTest.analyzePrd_withNoFile_returns400(), which currently asserts 400
+### for this same case.)
+POST {{baseUrl}}/api/prd/analyze
+
+### Exercise 3: analyze PRD with a real, 0-byte file (expect 400, "No file was
+### uploaded" — Spring's MultipartFile.isEmpty() is true for 0 bytes, so this
+### hits the SAME branch as sending no file at all, not text extraction)
+POST {{baseUrl}}/api/prd/analyze
+Content-Type: multipart/form-data; boundary=----boundary
+
+------boundary
+Content-Disposition: form-data; name="file"; filename="empty.txt"
+Content-Type: text/plain
+
+------boundary--
+
+### Exercise 4: analyze PRD with a 1-byte whitespace-only file (expect 400,
+### "No extractable text was found" — this is the request that actually reaches
+### the text-extraction branch, distinct from the 0-byte case above)
+POST {{baseUrl}}/api/prd/analyze
+Content-Type: multipart/form-data; boundary=----boundary
+
+------boundary
+Content-Disposition: form-data; name="file"; filename="blank.txt"
+Content-Type: text/plain
+
+< ../fixtures/blank.txt
+------boundary--
+
+### Exercise 1: analyze PRD — happy path (real Gemini call, can take ~1 min)
+### The `< ./path` syntax below tells REST Client to read the file's bytes as the body part.
+POST {{baseUrl}}/api/prd/analyze
+Content-Type: multipart/form-data; boundary=----boundary
+
+------boundary
+Content-Disposition: form-data; name="file"; filename="password-reset-prd.md"
+Content-Type: text/markdown
+
+< ../../samples/password-reset-prd.md
+------boundary--
+
+### Exercise 6: analyze screenshot with a non-image file (expect 400 — the
+### controller checks the multipart part's Content-Type, not the extension)
+POST {{baseUrl}}/api/screenshot/analyze
+Content-Type: multipart/form-data; boundary=----boundary
+
+------boundary
+Content-Disposition: form-data; name="file"; filename="password-reset-prd.md"
+Content-Type: text/markdown
+
+< ../../samples/password-reset-prd.md
+------boundary--
+
+### Exercise 5: analyze screenshot — happy path with an extra text field
+### (real Gemini vision call). Swap in a real image path on your machine.
+# POST {{baseUrl}}/api/screenshot/analyze
+# Content-Type: multipart/form-data; boundary=----boundary
+#
+# ------boundary
+# Content-Disposition: form-data; name="file"; filename="screenshot.png"
+# Content-Type: image/png
+#
+# < /absolute/path/to/a/real/screenshot.png
+# ------boundary
+# Content-Disposition: form-data; name="prompt"
+#
+# Focus on the checkout form and validation errors.
+# ------boundary--

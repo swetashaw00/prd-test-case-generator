@@ -1,0 +1,307 @@
+{
+  "info": {
+    "name": "PRD & Screenshot Test Case Generator",
+    "description": "Hands-on Postman collection for the prd-test-case-generator API. Companion to api-testing/README.md. 'Health', 'PRD Analysis', 'Screenshot Analysis' and 'History' are fully automatable (see npm run test:api:newman). 'Manual (Postman GUI only)' needs a human to pick a real file and calls the real Gemini API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080", "type": "string"}
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Static UI loads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {"raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('content-type is html', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "PRD Analysis",
+      "item": [
+        {
+          "name": "Analyze PRD - no body at all (415)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {"raw": "{{baseUrl}}/api/prd/analyze", "host": ["{{baseUrl}}"], "path": ["api", "prd", "analyze"]},
+            "description": "Exercise 2: no body, no Content-Type header. The endpoint declares consumes=\"multipart/form-data\", so a request that isn't multipart at all is rejected by Spring's content-type negotiation BEFORE the controller method runs — 415, not 400. (This is a real, documented discrepancy with ApiSmokeTest.analyzePrd_withNoFile_returns400(), which currently asserts 400 for this same case — a good example of a stale test worth fixing.)"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 415 (no multipart body at all)', () => pm.response.to.have.status(415));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Analyze PRD - 0-byte file (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": "api-testing/fixtures/empty.txt"}
+              ]
+            },
+            "url": {"raw": "{{baseUrl}}/api/prd/analyze", "host": ["{{baseUrl}}"], "path": ["api", "prd", "analyze"]},
+            "description": "Exercise 3: a real multipart 'file' part, but 0 bytes. Spring's MultipartFile.isEmpty() is true for a 0-byte file, so this hits the SAME 'No file was uploaded' branch as truly omitting the file — not the text-extraction branch (see next request)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error says no file was uploaded', () => {",
+                  "  pm.expect(pm.response.json().error).to.include('No file was uploaded');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Analyze PRD - whitespace-only file (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": "api-testing/fixtures/blank.txt"}
+              ]
+            },
+            "url": {"raw": "{{baseUrl}}/api/prd/analyze", "host": ["{{baseUrl}}"], "path": ["api", "prd", "analyze"]},
+            "description": "Exercise 4: a non-empty file (1 byte) whose extracted text is blank — this is the request that actually reaches the text-extraction branch, distinct from the 0-byte case above."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error mentions extractable text', () => {",
+                  "  pm.expect(pm.response.json().error).to.include('extractable text');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Screenshot Analysis",
+      "item": [
+        {
+          "name": "Analyze Screenshot - non-image upload (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": "samples/password-reset-prd.md"}
+              ]
+            },
+            "url": {"raw": "{{baseUrl}}/api/screenshot/analyze", "host": ["{{baseUrl}}"], "path": ["api", "screenshot", "analyze"]},
+            "description": "Exercise 6: uploads a real .md file as a 'screenshot' — proves the endpoint validates multipart Content-Type, not just presence of a file."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error mentions image formats', () => {",
+                  "  pm.expect(pm.response.json().error).to.include('image');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "History",
+      "item": [
+        {
+          "name": "List history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {"raw": "{{baseUrl}}/api/history", "host": ["{{baseUrl}}"], "path": ["api", "history"]},
+            "description": "Exercise 7: run this after at least one successful analyze call. The test script below captures the newest id into the {{historyId}} environment variable for the next request — this is the core Postman 'chaining' technique."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('response is an array', () => pm.expect(body).to.be.an('array'));",
+                  "if (body.length > 0) {",
+                  "  pm.environment.set('historyId', body[0].id);",
+                  "  console.log('Captured historyId =', body[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get history item - existing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {"raw": "{{baseUrl}}/api/history/{{historyId}}", "host": ["{{baseUrl}}"], "path": ["api", "history", "{{historyId}}"]},
+            "description": "Exercise 8: uses the {{historyId}} variable captured by 'List history' — run that request first in the same environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('full result has testCases', () => pm.expect(body.testCases).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get history item - not found (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {"raw": "{{baseUrl}}/api/history/999999999", "host": ["{{baseUrl}}"], "path": ["api", "history", "999999999"]},
+            "description": "Exercise 9: a hardcoded id that should never exist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Manual (Postman GUI only)",
+      "item": [
+        {
+          "name": "Analyze PRD - happy path",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": [], "description": "Pick samples/password-reset-prd.md (or gbp-seo-optimization-score-prd.md) from the repo root."}
+              ]
+            },
+            "url": {"raw": "{{baseUrl}}/api/prd/analyze", "host": ["{{baseUrl}}"], "path": ["api", "prd", "analyze"]},
+            "description": "Exercise 1: select a real PRD file for the 'file' form field, then Send. Calls the real Gemini API and can take up to ~1 minute — not part of the automated Newman run, deliberately."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('content-type is json', () => pm.response.to.be.json);",
+                  "const body = pm.response.json();",
+                  "pm.test('has a summary', () => pm.expect(body.summary).to.be.a('string').and.not.empty);",
+                  "pm.test('has at least one test case', () => pm.expect(body.testCases).to.be.an('array').with.length.above(0));",
+                  "pm.test('first test case has an id and priority', () => {",
+                  "  pm.expect(body.testCases[0].id).to.exist;",
+                  "  pm.expect(body.testCases[0].priority).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Analyze Screenshot - happy path",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": [], "description": "Pick any PNG/JPEG/GIF/WebP screenshot."},
+                {"key": "prompt", "value": "Focus on the checkout form and validation errors.", "type": "text"}
+              ]
+            },
+            "url": {"raw": "{{baseUrl}}/api/screenshot/analyze", "host": ["{{baseUrl}}"], "path": ["api", "screenshot", "analyze"]},
+            "description": "Exercise 5: same shape as PRD analysis, but multipart now carries a second, plain-text field alongside the file. Calls the real Gemini vision API — not part of the automated Newman run, deliberately."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('has at least one test case', () => pm.expect(body.testCases).to.be.an('array').with.length.above(0));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}

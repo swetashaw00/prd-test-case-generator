@@ -15,9 +15,49 @@ async function submitFile(endpoint, formData, statusEl) {
 
     statusEl.textContent = "Done.";
     renderResult(data);
+    loadHistory();
   } catch (err) {
     statusEl.textContent = "Request failed: " + err.message;
     statusEl.classList.add("error");
+  }
+}
+
+async function loadHistory() {
+  const listEl = document.getElementById("history-list");
+  const emptyEl = document.getElementById("history-empty");
+
+  try {
+    const response = await fetch("/api/history");
+    if (!response.ok) return;
+    const items = await response.json();
+
+    listEl.innerHTML = "";
+    emptyEl.style.display = items.length === 0 ? "block" : "none";
+
+    items.forEach((item) => {
+      const li = document.createElement("li");
+      const when = item.createdAt ? new Date(item.createdAt).toLocaleString() : "";
+      li.innerHTML = `
+        <div>${escapeHtml(item.summary || "(no summary)")}</div>
+        <div class="hist-meta">${escapeHtml(item.sourceType)} · ${escapeHtml(item.sourceFilename || "")} · ${escapeHtml(when)}</div>
+      `;
+      li.addEventListener("click", () => loadHistoryItem(item.id));
+      listEl.appendChild(li);
+    });
+  } catch (err) {
+    // History is a nice-to-have; a failed fetch shouldn't disrupt the rest of the page.
+  }
+}
+
+async function loadHistoryItem(id) {
+  try {
+    const response = await fetch(`/api/history/${id}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    renderResult(data);
+    document.getElementById("result-section").scrollIntoView({ behavior: "smooth" });
+  } catch (err) {
+    // ignore — user can just try another history item
   }
 }
 
@@ -94,3 +134,5 @@ document.getElementById("screenshot-form").addEventListener("submit", (e) => {
   if (prompt) formData.append("prompt", prompt);
   submitFile("/api/screenshot/analyze", formData, document.getElementById("screenshot-status"));
 });
+
+loadHistory();

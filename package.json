@@ -1,0 +1,16 @@
+{
+  "name": "prd-test-case-generator-testing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright e2e tests and Postman/Newman API tests for the PRD & Screenshot Test Case Generator",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:api:newman": "newman run api-testing/postman/PRD-Test-Case-Generator.postman_collection.json -e api-testing/postman/PRD-Test-Case-Generator.postman_environment.json --folder Health --folder \"PRD Analysis\" --folder \"Screenshot Analysis\" --folder History"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "newman": "^6.2.2"
+  }
+}

@@ -34,3 +34,15 @@ build/
 
 ### oh-my-claudecode local state ###
 .omc/
+
+### Local credentials ###
+.env
+
+### Local H2 database (generation history) ###
+data/
+
+### Playwright e2e ###
+node_modules/
+playwright-report/
+test-results/
+/e2e/.auth/
