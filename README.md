@@ -118,6 +118,46 @@ Schema (auto-created by `spring.jpa.hibernate.ddl-auto=update`):
 - `test_case_record` — the generated test cases for a run
 - `test_case_step` — the steps list for a test case
 
+## Testing
+
+### Unit / integration tests (Java)
+
+```bash
+./mvnw test
+```
+
+Includes `ApiSmokeTest` (endpoint-level checks via rest-assured) and
+`GenerationHistoryServiceTest`.
+
+### End-to-end tests (Playwright)
+
+`e2e/` drives the real static UI against a running Spring Boot instance, with
+`/api/*` calls intercepted via `page.route()` — no `GEMINI_API_KEY` needed to
+run these.
+
+```bash
+npm install
+npx playwright install chromium   # first run only
+npm run test:e2e           # headless
+npm run test:e2e:ui        # interactive UI mode
+npm run test:e2e:headed    # headed browser
+```
+
+`playwright.config.ts` boots the app itself (`mvnw spring-boot:run`) against
+`http://localhost:8080` if nothing is already listening there.
+
+### API testing exercises
+
+`api-testing/` is a guided, hands-on comparison of five ways to test the same
+API (Postman, Newman, curl, VS Code REST Client, rest-assured) — see
+[`api-testing/README.md`](api-testing/README.md) for the walkthrough. Quick
+start:
+
+```bash
+npm install
+npm run test:api:newman
+```
+
 ## Architecture
 
 - `service/DocumentExtractionService` — extracts plain text from PDF (Apache PDFBox) and DOCX (Apache POI).
